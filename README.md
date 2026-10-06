@@ -2,11 +2,9 @@
 
 [![Database](https://img.shields.io/badge/Database-PostgreSQL-blue.svg)](https://www.postgresql.org/)
 [![Backend](https://img.shields.io/badge/Backend-Flask%20%7C%20Python-green.svg)](https://flask.palletsprojects.com/)
-[![Driver](https://img.shields.io/badge/Driver-psycopg3%20Connection%20Pool-brightgreen.svg)]()
-[![Container](https://img.shields.io/badge/Container-Docker-2496ED.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A relational database engineering project and backend web service designed for managing zoological park operations, ticket sales, enclosure access, and visitor voting campaigns. The project covers relational schema design, integrity constraints, multi-dimensional OLAP analytics with `GROUPING SETS` and `CUBE`, database indexing, and a Flask REST API with PostgreSQL connection pooling.
+A relational database engineering project and backend web service designed for managing zoological park operations, ticket sales, enclosure access, and visitor voting campaigns. The project covers relational schema design, custom domain enums, procedural and constraint triggers, multi-dimensional OLAP analytics with `GROUPING SETS` and `CUBE`, and a Flask REST API with PostgreSQL connection pooling.
 
 Developed as part of the **Databases (Bases de Dados)** course at **Instituto Superior Técnico (IST), Universidade de Lisboa**.
 
@@ -14,30 +12,29 @@ Developed as part of the **Databases (Bases de Dados)** course at **Instituto Su
 
 ## Architecture Overview
 
-```text
- +--------------------+       HTTP Requests       +-----------------------+
- |  Client / Browser  | <=======================> |  Flask REST API       |
- +--------------------+                           |  (app.py)             |
-                                                  +-----------+-----------+
-                                                              |
-                                             psycopg_pool     | Connection Pool
-                                                              v
-                                                  +-----------------------+
-                                                  |  PostgreSQL Database  |
-                                                  |  (Docker Container)   |
-                                                  +-----------------------+
+```mermaid
+flowchart LR
+    Client["Client / Browser"] <-->|"HTTP / JSON"| Flask["Flask REST API\n(app.py)"]
+    Flask <-->|"psycopg Connection Pool"| DB[("PostgreSQL Database\n(Docker / Local)")]
 ```
 
 ---
 
 ## Core Features & Technical Highlights
 
-### 1. Relational Modeling & Schema Design
-* **Conceptual & Logical Design:** Normalized schema modeling zones, enclosures (*recintos*), biological species, individual animals, medical checkups, ticketing, access rights, and sales transactions.
-* **Integrity Constraints:** Enforced via Primary Keys, Composite Foreign Keys with referential triggers/cascades, and check constraints (e.g., enclosure capacities, date validations).
+### 1. Relational Modeling & Schema Constraints
+* **Domain ENUMs:** Custom types for animal categories (`cat`: Aves, Carnívoros, Herbívoros, Mamíferos Marinhos, Primatas, Répteis) and geographic continents (`cnt`).
+* **Declarative Integrity Constraints (CHECK):**
+  * `RI-1`: Enforces that `categoria` and `continente` in table `zona` cannot be simultaneously `NULL`.
+  * Regex pattern validation for species scientific binomial nomenclature and Portuguese 9-digit Tax ID (`NIF`).
+* **Procedural & Constraint Triggers:**
+  * `RI-2` (`check_animal_zona_compat`): Verifies that each animal is housed in an enclosure located in a zone compatible with its species category and continent.
+  * `RI-3` (`check_zona_especie`): Ensures all animals of the same species are assigned to enclosures within the same zone.
+  * `RI-4` (`check_venda_valida`): Constraint trigger deferred to transaction commit, enforcing that every completed sale contains at least one ticket with valid zone access.
 
 ### 2. Multi-Dimensional Analytics (OLAP)
-* **Advanced Aggregations:** Complex queries leveraging SQL OLAP operators:
+* **Materialized View (`vendas_zoo`):** Pre-aggregates ticket sales, zone access, revenue, and calendar dimensions (`mes`, `dia_da_semana`).
+* **Advanced Aggregation Operators:**
   * `GROUPING SETS ((), (dia_da_semana), (mes))` to compute overall, monthly, and day-of-week attendance percentages.
   * `CUBE (id_zona, mes)` to evaluate daily ticket averages across zones and time dimensions simultaneously.
 
@@ -57,7 +54,7 @@ Developed as part of the **Databases (Bases de Dados)** course at **Instituto Su
 ```text
 zoo-management-database/
 ├── app.py                     # Flask REST API implementation with psycopg connection pool
-├── zoo-database-design.ipynb  # Interactive notebook with ER model, DDL, queries & schema design
+├── zoo-database-design.ipynb  # Interactive notebook with DDL, triggers, seeding & OLAP queries
 ├── povoar_vendas.sql          # Bulk transactional data population script
 ├── LICENSE                    # MIT License
 ├── .gitignore                 # Exclusion rules for python and checkpoints
@@ -82,7 +79,7 @@ The Flask application (`app.py`) exposes the following endpoints:
 
 ### 1. Prerequisites
 * Python 3.9+
-* Docker & Docker Compose (or local PostgreSQL instance)
+* Docker (or local PostgreSQL instance)
 
 ### 2. Setup PostgreSQL Container
 ```bash
@@ -108,16 +105,7 @@ python3 app.py
 
 ---
 
-## Authors & Acknowledgments
+## Credits
 
-* **David Vasques** ([@DeastV](https://github.com/DeastV))
-* **Leonor Machado** ([@leonormm](https://github.com/leonormm))
-* **João Costa** ([@JCostaJ](https://github.com/JCostaJ))
-
-Collaborative group project developed for Bases de Dados at Instituto Superior Técnico, Universidade de Lisboa.
-
----
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
+* **David Vasques** ([@DeastV](https://github.com/DeastV)), **Leonor Machado** ([@leonormm](https://github.com/leonormm)), **João Costa** ([@JCostaJ](https://github.com/JCostaJ))
+* Collaborative group coursework developed for Bases de Dados at Instituto Superior Técnico, Universidade de Lisboa.
